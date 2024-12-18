@@ -1,0 +1,31 @@
+name: Get Version
+description: "Gets version number from __about__.py"
+inputs:
+  path:
+    description: "Path to file"
+    required: true
+outputs:
+  version:
+    description: "New version"
+    value: ${{ steps.read-file.outputs.version }}
+runs:
+  using: composite
+  steps:
+    - name: Read __about__.py
+      id: read-file
+      shell: bash
+      run: |
+        #echo ${{ inputs.path }}
+        #content=`cat ${{ inputs.path }}`
+        content=`cat __about__.py`
+        #echo ${{content}}
+
+        regex_pattern='([0-9]+\.[0-9]+\.[0-9]+)\"$'
+
+        if [[ $content =~ $regex_pattern ]]; then
+            echo "${BASH_REMATCH[1]}"
+            echo "version=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+        else
+            echo "couldn't find version"
+            exit 1
+        fi

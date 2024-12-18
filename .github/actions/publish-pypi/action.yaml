@@ -1,0 +1,38 @@
+name: Publish PyPi
+description: "Builds and publishes to PyPi"
+inputs:
+  pypi-token:
+    description: "PyPi publish token"
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Set up pip cache
+      if: runner.os == 'Linux'
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+        restore-keys: ${{ runner.os }}-pip-
+
+    - name: Install Hatch
+      shell: bash
+      run: pipx install hatch
+
+    - name: Run tests
+      shell: bash
+      run: hatch test
+
+    - name: Build dist
+      shell: bash
+      run: hatch build
+
+    - name: Publish on PyPI
+      shell: bash
+      if: github.ref == 'refs/heads/main'
+      run: hatch publish -u __token__ -a ${{ inputs.pypi-token }}

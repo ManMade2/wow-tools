@@ -1,0 +1,34 @@
+name: Filter Version
+description: "Checks if __about__.py has changed"
+inputs:
+  github-token:
+    description: "GitHub token"
+    required: true
+outputs:
+  version-changed:
+    description: "Has version changed"
+    value: ${{ steps.check-changed-files.outputs.version-changed }}
+  path:
+    description: "Path to file"
+    value: ${{ steps.check-changed-files.outputs.path }}
+runs:
+  using: composite
+  steps:
+    - uses: jitterbit/get-changed-files@v1
+      name: Get all changed files
+      id: get-changed-files
+      with:
+        format: space-delimited
+        token: ${{ inputs.github-token }}
+
+    - name: Check changed files
+      shell: bash
+      id: check-changed-files
+      run: |
+        for changed_file in ${{ steps.get-changed-files.outputs.modified }}; do
+          if [[ "$changed_file" == *"__about__.py"* ]]; then
+            echo "version-changed=true" >> $GITHUB_OUTPUT
+            echo "path={$changed_file}" >> $GITHUB_OUTPUT
+            break
+          fi
+        done
