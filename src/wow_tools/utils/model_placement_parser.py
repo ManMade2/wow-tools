@@ -67,20 +67,18 @@ class ModelPlacementParser:
             x=float(row[ROT_X_INDEX]), y=float(row[ROT_Y_INDEX]), z=float(row[ROT_Z_INDEX]), w=rotW
         )
 
-        model_file = (
-            row[MODEL_FILE_INDEX].replace("..\\..\\", "").replace(".obj", ".glb")
-        )  # Remove parent directory references
+        model_file = row[MODEL_FILE_INDEX].replace("..\\..\\", "").replace(".obj", ".glb")
 
         return ModelPlacement(
-            ModelFile=model_file,
-            Position=position,
-            Rotation=rotation,
-            ScaleFactor=float(row[SCALE_FACTOR_INDEX]),
-            ModelId=int(row[MODEL_ID_INDEX]),
-            Type=row[TYPE_INDEX],
-            FileDataId=int(row[FILE_DATA_ID_INDEX]),
-            DoodadSetIndex=int(row[DOODAD_SET_INDEX]),
-            DoodadSetNames=row[DOODAD_SET_NAMES_INDEX],
+            model_file=model_file,
+            position=position,
+            rotation=rotation,
+            scale_factor=float(row[SCALE_FACTOR_INDEX]),
+            model_id=int(row[MODEL_ID_INDEX]),
+            type=row[TYPE_INDEX],
+            file_data_id=int(row[FILE_DATA_ID_INDEX]),
+            doodad_set_index=int(row[DOODAD_SET_INDEX]),
+            doodad_set_names=row[DOODAD_SET_NAMES_INDEX],
         )
 
     def get_models_for_files(self, adt_files: List[str]) -> List[ModelPlacement]:

@@ -21,7 +21,7 @@ classifiers = [
 ]
 dependencies = [
   "ManMade2.Commander==1.0.4",
-  "ManMade2.BelialDB==1.0.2",
+  "ManMade2.BelialDB==1.0.10",
   "tk",
   "python-json-logger",
   "pydantic",

@@ -6,6 +6,7 @@ from .model_placement import ModelPlacement
 
 class MapData(BaseModel):
     name: str
+    id: int
     models: list[ModelPlacement]
 
     @classmethod

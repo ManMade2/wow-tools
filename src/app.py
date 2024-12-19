@@ -1,4 +1,4 @@
-import asyncio
+import asyncio  # type: ignore
 from pathlib import Path
 
 from belial_db import create_connection
@@ -7,7 +7,7 @@ from belial_db.models import MapModel, AssetModel, AssetFileModel
 from belial_db.data import Vector3, Vector4
 
 from wow_tools.data import MapData
-from wow_tools.map_creator import MapCreator
+from wow_tools.map_creator import MapCreator  # type: ignore
 from wow_tools.utils.logging_config import setup_logging
 
 input_path = Path("C:/Users/MadsKris/Desktop/Input Data")
@@ -17,60 +17,57 @@ DATABASE_URL = f"sqlite:///{output_path}/data.db"
 
 
 def add_to_db(name: str):
-    conn = create_connection(DATABASE_URL, echo=True)
+    conn = create_connection(DATABASE_URL, echo=False)
 
     mapRepo = MapRepo(conn)
 
     assets: set[AssetModel] = set()
     assetFiles: set[AssetFileModel] = set()
 
-    with open(f"{output_path}/Maps/{name}.json", "r") as file:
+    with open(f"{output_path}/maps/{name}.json", "r") as file:
         map_data = MapData.from_json(file.read())
 
         for model in map_data.models:
 
             asset = AssetModel()
-            asset.Id = model.ModelId
-            asset.AssetFileId = model.FileDataId
-            asset.Path = model.ModelFile
-            asset.Type = model.Type
-            asset.ScaleFactor = model.ScaleFactor
-            asset.Position = Vector3(x=model.Position.x, y=model.Position.y, z=model.Position.z)
-            asset.Rotation = Vector4(
-                x=model.Rotation.x, y=model.Rotation.y, z=model.Rotation.z, w=model.Rotation.w
+            asset.id = model.model_id
+            asset.asset_file_id = model.file_data_id
+            asset.path = model.model_file
+            asset.type = model.type
+            asset.scale_factor = model.scale_factor
+            asset.position = Vector3(x=model.position.x, y=model.position.y, z=model.position.z)
+            asset.rotation = Vector4(
+                x=model.rotation.x, y=model.rotation.y, z=model.rotation.z, w=model.rotation.w
             )
 
             assets.add(asset)
 
             assetFile = AssetFileModel()
-            assetFile.Id = model.FileDataId
-            assetFile.Path = model.ModelFile
-            assetFile.Type = model.Type
-            assetFile.DoodadSetIndex = model.DoodadSetIndex
-            assetFile.DoodadSetNames = model.DoodadSetNames
+            assetFile.id = model.file_data_id
+            assetFile.path = model.model_file
+            assetFile.type = model.type
+            assetFile.doodad_set_index = model.doodad_set_index
+            assetFile.doodad_set_names = model.doodad_set_names
 
             assetFiles.add(assetFile)
 
-            break
-
-    split = map_data.name.split("-")
-    name = split[1]
-    id = int(split[0])
-
     map = MapModel()
-    map.Name = name
-    map.Id = id
-    map.Assets = list(assets)
-    map.AssetFiles = list(assetFiles)
+    map.name = map_data.name
+    map.id = map_data.id
+    map.assets = list(assets)
+    map.asset_files = list(assetFiles)
 
     mapRepo.create_map(map)
 
 
 def main():
     setup_logging()
+
     # map_creator = MapCreator(blenderPath, input_path, output_path)
     # asyncio.run(map_creator.convert_map_objects())
     # asyncio.run(map_creator.create_map())
+
+    add_to_db("1 - Dun Morogh")
 
 
 if __name__ == "__main__":

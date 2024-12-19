@@ -1,6 +1,7 @@
+import json
 import logging
 from pathlib import Path
-from typing import Sequence
+from typing import Optional, Sequence
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 
@@ -36,7 +37,7 @@ class MapCreator:
         self._model_parser = ModelPlacementParser(csv_folder=self._input_path / "csv")
         self._logger = logging.getLogger(__name__)
 
-    def _open_file_dialog(self) -> Path | None:
+    def _open_file_dialog(self) -> Optional[Path]:
         """
         Opens a file dialog to select a JSON map file.
 
@@ -59,7 +60,7 @@ class MapCreator:
 
         return file_path
 
-    def _open_folder_dialog(self) -> Path | None:
+    def _open_folder_dialog(self) -> Optional[Path]:
         """
         Opens a folder dialog to select a directory.
 
@@ -93,11 +94,11 @@ class MapCreator:
         filtered_models: set[ModelPlacement] = set()
 
         for model in map.models:
-            if "world\\critter" in str(model.ModelFile):
+            if "world\\critter" in str(model.model_file):
                 continue
 
-            if "world\\wmo" not in str(model.ModelFile):
-                model.ModelFile = model.ModelFile.replace(".obj", ".phys.obj")
+            if "world\\wmo" not in str(model.model_file):
+                model.model_file = model.model_file.replace(".obj", ".phys.obj")
 
             filtered_models.add(model)
 
@@ -107,68 +108,93 @@ class MapCreator:
         """
         Creates a map by executing a series of commands based on the selected map file.
         """
-        map_path = self._open_folder_dialog()
-        if map_path is None:
-            return
+        try:
+            map_path = self._open_folder_dialog()
+            if map_path is None:
+                return
 
-        self._logger.info(f"Map creation started: {map_path.name}")
+            self._logger.info(f"Map creation started: {map_path.name}")
 
-        commands: dict[str, Sequence[CommandProtocol]] = {
-            "Create Map": [CreateMap(map_path, self._blender_path)],
-            "Convert To Gltf": [
-                ConvertToGltf(
-                    Path(f"{map_path.name}.glb"),
-                    self._output_path / "Maps",
-                ),
-            ],
-        }
+            commands: dict[str, Sequence[CommandProtocol]] = {
+                "Create Map": [CreateMap(map_path, self._blender_path)],
+                "Convert To Gltf": [
+                    ConvertToGltf(
+                        Path(f"{map_path.name}.glb"),
+                        self._output_path / "maps",
+                    ),
+                ],
+            }
 
-        results = await Runner.execute_set(commands)
-        mapResult = results[0]
+            results = await Runner.execute_set(commands)
+            mapResult = results[0]
 
-        if not mapResult.success:
-            self._logger.error(f"Error creating map: {mapResult.message}")
-            return
+            if not mapResult.success:
+                self._logger.error(f"Error creating map: {mapResult.message}")
+                return
 
-        models = self._model_parser.get_models_for_files(mapResult.output)
-        map = MapData(name=map_path.name, models=models)
+            models = self._model_parser.get_models_for_files(mapResult.output)
 
-        with open(self._output_path / f"Maps/{map_path.name}.json", "w") as f:
-            f.write(map.model_dump_json(indent=4))
+            split = map_path.name.split(" - ")
+
+            if len(split) != 2:
+                self._logger.error(f"Invalid map name: {map_path.name}")
+                return
+
+            map_id = int(split[0])
+            map_name = split[1]
+
+            map = MapData(name=map_name, id=map_id, models=models)
+
+            with open(self._output_path / f"maps/{map_path.name}.json", "w") as f:
+                f.write(map.model_dump_json(indent=4))
+
+        except FileNotFoundError as e:
+            self._logger.error(f"File not found: {e}")
+        except Exception as e:
+            self._logger.error(f"An unexpected error occurred during map creation: {e}")
 
     async def convert_map_objects(self):
         """
         Converts map objects to GLB and GLTF formats based on the selected map file.
         """
-        file_path = self._open_file_dialog()
-        if file_path is None:
-            return
+        file_path = None
+        try:
+            file_path = self._open_file_dialog()
+            if file_path is None:
+                return
 
-        map = MapData.model_validate_json(file_path.read_text())
-        commands: dict[str, Sequence[CommandProtocol]] = {
-            "Convert To Glb": [],
-            "Convert To Gltf": [],
-        }
+            map = MapData.model_validate_json(file_path.read_text())
+            commands: dict[str, Sequence[CommandProtocol]] = {
+                "Convert To Glb": [],
+                "Convert To Gltf": [],
+            }
 
-        for model in self._filter_models(map):
+            for model in self._filter_models(map):
 
-            model_file_path = self._input_path / model.ModelFile.replace(".glb", ".obj")
+                model_file_path = self._input_path / model.model_file.replace(".glb", ".obj")
 
-            if not model_file_path.exists():
-                raise FileNotFoundError(f"Model file does not exist: {model_file_path}")
+                if not model_file_path.exists():
+                    raise FileNotFoundError(f"Model file does not exist: {model_file_path}")
 
-            model_output_path = self._output_path / model.ModelFile.replace(".glb", "")
-            model_output_path.parent.mkdir(parents=True, exist_ok=True)
+                model_output_path = self._output_path / model.model_file.replace(".glb", "")
+                model_output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            if model_output_path.exists():
-                continue
+                if model_output_path.exists():
+                    continue
 
-            commands["Convert To Glb"].append(ConvertToGlb(model_file_path, self._blender_path))
-            commands["Convert To Gltf"].append(
-                ConvertToGltf(
-                    Path(f"{model_file_path.stem}.glb"),
-                    Path(model_output_path.parent),
+                commands["Convert To Glb"].append(ConvertToGlb(model_file_path, self._blender_path))
+                commands["Convert To Gltf"].append(
+                    ConvertToGltf(
+                        Path(f"{model_file_path.stem}.glb"),
+                        Path(model_output_path.parent),
+                    )
                 )
-            )
 
-        return await Runner.execute_set(commands, clean=False, wait_time=1, batch_size=10)
+            return await Runner.execute_set(commands, clean=False, wait_time=1, batch_size=10)
+
+        except FileNotFoundError as e:
+            self._logger.error(f"File not found: {e}")
+        except json.JSONDecodeError as e:
+            self._logger.error(f"Error decoding JSON from file: {file_path}, error: {e}")
+        except Exception as e:
+            self._logger.error(f"An unexpected error occurred during map object conversion: {e}")
